@@ -67,3 +67,34 @@ returning id, title, description, completed, created_at, updated_at;`
 	}
 	return &task, nil
 }
+
+func (s *TaskStore) Update(id int, input models.UpdateTask) (*models.Task, error) {
+	task, err := s.GetByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("error updating task (not found): %w", err)
+	}
+	if input.Title != nil {
+		task.Title = *input.Title
+	}
+	if input.Description != nil {
+		task.Description = *input.Description
+	}
+	if input.Completed != nil {
+		task.Completed = *input.Completed
+	}
+	task.UpdatedAt = time.Now()
+
+	query := `
+update tasks 
+    set title = $1, description = $2, completed = $3, updated_at = $4) 
+    where id = $5
+returning id, title, description, completed, created_at, updated_at;`
+
+	var updatedTask models.Task
+
+	err = s.db.QueryRowx(query, task.Title, task.Description, task.Description, task.UpdatedAt, id).StructScan(&updatedTask)
+	if err != nil {
+		return nil, fmt.Errorf("error updating task: %w", err)
+	}
+	return &updatedTask, nil
+}
