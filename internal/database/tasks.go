@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sptringTwoRestAPI/internal/models"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -47,6 +48,22 @@ where id = $1;`
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error getting task by id: %w", err)
+	}
+	return &task, nil
+}
+
+func (s *TaskStore) Create(input models.CreateTaskInput) (*models.Task, error) {
+	var task models.Task
+
+	query := `
+insert into tasks (title, description, completed, created_at, updated_at) values 
+                                                                              ($1, $2, $3, $4, $5)
+returning id, title, description, completed, created_at, updated_at;`
+	now := time.Now()
+
+	err := s.db.QueryRowx(query, input.Title, input.Description, input.Description, now, now).StructScan(&task)
+	if err != nil {
+		return nil, fmt.Errorf("error creating task: %w", err)
 	}
 	return &task, nil
 }
