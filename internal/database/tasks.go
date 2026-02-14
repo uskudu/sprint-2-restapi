@@ -98,3 +98,19 @@ returning id, title, description, completed, created_at, updated_at;`
 	}
 	return &updatedTask, nil
 }
+
+func (s *TaskStore) Delete(id int) error {
+	query := `delete from tasks where id = $1;`
+	res, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting task with id %d: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error with rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("task with id %d not found: %w", id, err)
+	}
+	return nil
+}
