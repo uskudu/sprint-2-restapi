@@ -94,3 +94,50 @@ func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusCreated, task)
 }
+
+func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tasks/"), "/")
+
+	id, err := strconv.Atoi(pathParts[0])
+	if err != nil {
+		respondWithError(
+			w, http.StatusBadRequest,
+			fmt.Errorf("error converting path string to task id: %w", err),
+		)
+		return
+	}
+
+	var input models.UpdateTask
+	if err = json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondWithError(
+			w, http.StatusBadRequest,
+			fmt.Errorf("error updating task: %w", err),
+		)
+		return
+	}
+
+	if input.Title != nil && strings.TrimSpace(*input.Title) == "" {
+		respondWithError(
+			w, http.StatusBadRequest,
+			fmt.Errorf("error updating task: %w", utils.ErrNoTaskTitle),
+		)
+		return
+	}
+
+	task, err := h.store.Update(id, input)
+	if err != nil {
+		// todo looks smelly
+		if strings.Contains(err.Error(), "record not found") {
+			respondWithError(
+				w, http.StatusNotFound,
+				fmt.Errorf("error updating task: %w", err),
+			)
+		} else {
+			respondWithError(
+				w, http.StatusInternalServerError,
+				fmt.Errorf("error updating task: %w", err),
+			)
+		}
+	}
+	respondWithJSON(w, http.StatusOK, task)
+}
