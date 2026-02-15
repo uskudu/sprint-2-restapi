@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sptringTwoRestAPI/internal/database"
 	"sptringTwoRestAPI/internal/models"
-	"sptringTwoRestAPI/internal/utils"
 	"strings"
 )
 
@@ -22,16 +21,16 @@ func NewHandlers(store *database.TaskStore) *Handlers {
 func (h *Handlers) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.store.GetAll()
 	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, err)
+		RespondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	utils.RespondWithJSON(w, http.StatusOK, tasks)
+	RespondWithJSON(w, http.StatusOK, tasks)
 }
 
 func (h *Handlers) GetTask(w http.ResponseWriter, r *http.Request) {
-	id, err := utils.GetTaskID(r.URL.Path)
+	id, err := GetTaskID(r.URL.Path)
 	if err != nil {
-		utils.RespondWithError(
+		RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -40,17 +39,17 @@ func (h *Handlers) GetTask(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := h.store.GetByID(id)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, err)
+		RespondWithError(w, http.StatusBadRequest, err)
 		return
 	}
-	utils.RespondWithJSON(w, http.StatusOK, tasks)
+	RespondWithJSON(w, http.StatusOK, tasks)
 }
 
 func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var input models.CreateTaskInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.RespondWithError(
+		RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error decoding create task input: %w", err),
 		)
@@ -58,22 +57,22 @@ func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(input.Title) == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
+		RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
 		return
 	}
 
 	task, err := h.store.Create(input)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusInternalServerError, err)
+		RespondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	utils.RespondWithJSON(w, http.StatusCreated, task)
+	RespondWithJSON(w, http.StatusCreated, task)
 }
 
 func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	id, err := utils.GetTaskID(r.URL.Path)
+	id, err := GetTaskID(r.URL.Path)
 	if err != nil {
-		utils.RespondWithError(
+		RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -82,12 +81,12 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	var input models.UpdateTask
 	if err = json.NewDecoder(r.Body).Decode(&input); err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, err)
+		RespondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if input.Title != nil && strings.TrimSpace(*input.Title) == "" {
-		utils.RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
+		RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
 		return
 	}
 
@@ -95,18 +94,18 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, database.ErrTaskNotFound):
-			utils.RespondWithError(w, http.StatusNotFound, err)
+			RespondWithError(w, http.StatusNotFound, err)
 		default:
-			utils.RespondWithError(w, http.StatusInternalServerError, err)
+			RespondWithError(w, http.StatusInternalServerError, err)
 		}
 	}
-	utils.RespondWithJSON(w, http.StatusOK, task)
+	RespondWithJSON(w, http.StatusOK, task)
 }
 
 func (h *Handlers) DeleteTask(w http.ResponseWriter, r *http.Request) {
-	id, err := utils.GetTaskID(r.URL.Path)
+	id, err := GetTaskID(r.URL.Path)
 	if err != nil {
-		utils.RespondWithError(
+		RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -116,11 +115,11 @@ func (h *Handlers) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	if err = h.store.Delete(id); err != nil {
 		switch {
 		case errors.Is(err, database.ErrTaskNotFound):
-			utils.RespondWithError(w, http.StatusNotFound, err)
+			RespondWithError(w, http.StatusNotFound, err)
 		default:
-			utils.RespondWithError(w, http.StatusInternalServerError, err)
+			RespondWithError(w, http.StatusInternalServerError, err)
 		}
 		return
 	}
-	utils.RespondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
+	RespondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }

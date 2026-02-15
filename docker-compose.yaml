@@ -3,12 +3,12 @@ services:
     image: postgres:15-alpine
     container_name: t_pg
     environment:
-      POSTGRES_DB: tdb
-      POSTGRES_USER: tu
-      POSTGRES_PASSWORD: tp
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
         - postgres_data:/var/lib/postgresql/data
         - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
