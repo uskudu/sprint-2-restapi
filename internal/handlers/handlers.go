@@ -141,3 +141,32 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusOK, task)
 }
+
+func (h *Handlers) DeleteTask(w http.ResponseWriter, r *http.Request) {
+	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tasks/"), "/")
+
+	id, err := strconv.Atoi(pathParts[0])
+	if err != nil {
+		respondWithError(
+			w, http.StatusBadRequest,
+			fmt.Errorf("error converting path string to task id: %w", err),
+		)
+		return
+	}
+
+	if err = h.store.Delete(id); err != nil {
+		// todo looks smelly
+		if strings.Contains(err.Error(), "record not found") {
+			respondWithError(
+				w, http.StatusNotFound,
+				fmt.Errorf("error deleting task: %w", err),
+			)
+		} else {
+			respondWithError(
+				w, http.StatusInternalServerError,
+				fmt.Errorf("error deleting task: %w", err),
+			)
+		}
+	}
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
+}
