@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sptringTwoRestAPI/internal/database"
 	"sptringTwoRestAPI/internal/models"
 	"sptringTwoRestAPI/internal/utils"
-	"strconv"
 	"strings"
 )
 
@@ -19,35 +19,19 @@ func NewHandlers(store *database.TaskStore) *Handlers {
 	return &Handlers{store: store}
 }
 
-func respondWithJSON(w http.ResponseWriter, statusCode int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(payload)
-}
-
-// todo err error is message string at 1:14:14
-func respondWithError(w http.ResponseWriter, statusCode int, err error) {
-	respondWithJSON(w, statusCode, map[string]error{"error": err})
-}
-
 func (h *Handlers) GetAllTasks(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.store.GetAll()
 	if err != nil {
-		respondWithError(
-			w, http.StatusInternalServerError,
-			fmt.Errorf("error getting all tasks: %w", err),
-		)
+		utils.RespondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	respondWithJSON(w, http.StatusOK, tasks)
+	utils.RespondWithJSON(w, http.StatusOK, tasks)
 }
 
 func (h *Handlers) GetTask(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tasks/"), "/")
-
-	id, err := strconv.Atoi(pathParts[0])
+	id, err := utils.GetTaskID(r.URL.Path)
 	if err != nil {
-		respondWithError(
+		utils.RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -56,20 +40,17 @@ func (h *Handlers) GetTask(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := h.store.GetByID(id)
 	if err != nil {
-		respondWithError(
-			w, http.StatusBadRequest,
-			fmt.Errorf("error getting a task: %w", err),
-		)
+		utils.RespondWithError(w, http.StatusBadRequest, err)
 		return
 	}
-	respondWithJSON(w, http.StatusOK, tasks)
+	utils.RespondWithJSON(w, http.StatusOK, tasks)
 }
 
 func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 	var input models.CreateTaskInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(
+		utils.RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error decoding create task input: %w", err),
 		)
@@ -77,30 +58,22 @@ func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.TrimSpace(input.Title) == "" {
-		respondWithError(
-			w, http.StatusBadRequest,
-			fmt.Errorf("error creating task: %w", utils.ErrNoTaskTitle),
-		)
+		utils.RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
 		return
 	}
 
 	task, err := h.store.Create(input)
 	if err != nil {
-		respondWithError(
-			w, http.StatusInternalServerError,
-			fmt.Errorf("error creating a task: %w", err),
-		)
+		utils.RespondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	respondWithJSON(w, http.StatusCreated, task)
+	utils.RespondWithJSON(w, http.StatusCreated, task)
 }
 
 func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tasks/"), "/")
-
-	id, err := strconv.Atoi(pathParts[0])
+	id, err := utils.GetTaskID(r.URL.Path)
 	if err != nil {
-		respondWithError(
+		utils.RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -109,45 +82,31 @@ func (h *Handlers) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	var input models.UpdateTask
 	if err = json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(
-			w, http.StatusBadRequest,
-			fmt.Errorf("error updating task: %w", err),
-		)
+		utils.RespondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if input.Title != nil && strings.TrimSpace(*input.Title) == "" {
-		respondWithError(
-			w, http.StatusBadRequest,
-			fmt.Errorf("error updating task: %w", utils.ErrNoTaskTitle),
-		)
+		utils.RespondWithError(w, http.StatusBadRequest, ErrNoTaskTitle)
 		return
 	}
 
 	task, err := h.store.Update(id, input)
 	if err != nil {
-		// todo looks smelly
-		if strings.Contains(err.Error(), "record not found") {
-			respondWithError(
-				w, http.StatusNotFound,
-				fmt.Errorf("error updating task: %w", err),
-			)
-		} else {
-			respondWithError(
-				w, http.StatusInternalServerError,
-				fmt.Errorf("error updating task: %w", err),
-			)
+		switch {
+		case errors.Is(err, database.ErrTaskNotFound):
+			utils.RespondWithError(w, http.StatusNotFound, err)
+		default:
+			utils.RespondWithError(w, http.StatusInternalServerError, err)
 		}
 	}
-	respondWithJSON(w, http.StatusOK, task)
+	utils.RespondWithJSON(w, http.StatusOK, task)
 }
 
 func (h *Handlers) DeleteTask(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/tasks/"), "/")
-
-	id, err := strconv.Atoi(pathParts[0])
+	id, err := utils.GetTaskID(r.URL.Path)
 	if err != nil {
-		respondWithError(
+		utils.RespondWithError(
 			w, http.StatusBadRequest,
 			fmt.Errorf("error converting path string to task id: %w", err),
 		)
@@ -155,18 +114,13 @@ func (h *Handlers) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.store.Delete(id); err != nil {
-		// todo looks smelly
-		if strings.Contains(err.Error(), "record not found") {
-			respondWithError(
-				w, http.StatusNotFound,
-				fmt.Errorf("error deleting task: %w", err),
-			)
-		} else {
-			respondWithError(
-				w, http.StatusInternalServerError,
-				fmt.Errorf("error deleting task: %w", err),
-			)
+		switch {
+		case errors.Is(err, database.ErrTaskNotFound):
+			utils.RespondWithError(w, http.StatusNotFound, err)
+		default:
+			utils.RespondWithError(w, http.StatusInternalServerError, err)
 		}
+		return
 	}
-	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
+	utils.RespondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }
